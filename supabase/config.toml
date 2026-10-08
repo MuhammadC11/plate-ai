@@ -1,0 +1,6 @@
+project_id = "plate-ai"
+
+[functions.analyze-meal]
+# Leave JWT verification on. It is what stops anyone who finds the function URL
+# from spending your Gemini and USDA quota.
+verify_jwt = true

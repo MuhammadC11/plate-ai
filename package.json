@@ -1,12 +1,25 @@
 {
   "name": "plate-ai",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.112.1",
     "expo": "~57.0.10",
+    "expo-camera": "~57.0.5",
+    "expo-constants": "~57.0.9",
+    "expo-dev-client": "~57.0.19",
+    "expo-file-system": "~57.0.1",
+    "expo-haptics": "~57.0.3",
+    "expo-image-manipulator": "~57.0.19",
+    "expo-linking": "~57.0.10",
+    "expo-router": "~57.0.13",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -14,9 +27,13 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "build:usda-test": "tsc supabase/functions/analyze-meal/usda.ts --ignoreConfig --outDir .test-build --module esnext --target es2022 --moduleResolution bundler --skipLibCheck --lib es2022,dom && node -e \"require('fs').writeFileSync('.test-build/package.json','{\\\"type\\\":\\\"module\\\"}')\"",
+    "test:usda": "npm run build:usda-test && node scripts/usda.test.mjs",
+    "check:usda": "npm run build:usda-test && node scripts/usda-live.mjs"
   },
   "private": true
 }
