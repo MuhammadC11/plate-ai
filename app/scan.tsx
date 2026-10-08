@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
-import { File as FsFile } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -43,8 +43,11 @@ export default function ScanScreen() {
 
   async function pickFromLibrary() {
     try {
-      const picked = await FsFile.pickFileAsync({ mimeTypes: 'image/*' });
-      if (!picked.canceled && picked.result) openReview(picked.result.uri);
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+      });
+      if (!picked.canceled && picked.assets[0]) openReview(picked.assets[0].uri);
     } catch (error) {
       console.error('Picking an image failed:', error);
     }
