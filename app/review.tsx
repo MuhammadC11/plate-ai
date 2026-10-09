@@ -27,12 +27,14 @@ import type { AnalysisItem } from '@/lib/types';
 type Phase = 'preparing' | 'analyzing' | 'ready' | 'failed';
 
 export default function ReviewScreen() {
+  // The camera and library picker pass the selected local URI through the route.
   const { uri } = useLocalSearchParams<{ uri: string }>();
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { userId } = useAuth();
 
+  // Phase controls which loading, error, or results view is rendered.
   const [phase, setPhase] = useState<Phase>('preparing');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [title, setTitle] = useState('Meal');
@@ -66,6 +68,7 @@ export default function ReviewScreen() {
 
   const run = useCallback(
     async (withHint?: string) => {
+      // This same function handles the first analysis and later hint-based retries.
       if (!uri) {
         setError('No photo was passed to this screen.');
         setPhase('failed');
@@ -76,12 +79,14 @@ export default function ReviewScreen() {
 
       try {
         if (!base64Ref.current) {
+          // Prepare only once; retries reuse the compressed image.
           setPhase('preparing');
           const prepared = await prepareImage(uri);
           base64Ref.current = prepared.base64;
           setPreviewUri(prepared.uri);
         }
 
+        // The server identifies foods first, then enriches them with nutrition data.
         setPhase('analyzing');
         const result = await analyzeMeal(base64Ref.current, withHint);
 
@@ -99,17 +104,21 @@ export default function ReviewScreen() {
   );
 
   useEffect(() => {
+    // Start analysis automatically after the route receives the image URI.
     run();
   }, [run]);
 
+  // Keep the summary derived from items so edits immediately update the totals.
   const totals = sumItems(items);
 
   async function save() {
+    // An empty analysis cannot be logged, and unauthenticated users cannot own a meal.
     if (!userId || items.length === 0) return;
     setSaving(true);
     setError(null);
 
     try {
+      // Photo upload is optional; createMeal still saves nutrition if it fails.
       const photoUrl = previewUri ? await uploadMealPhoto(userId, previewUri) : null;
       await createMeal(userId, {
         title: title.trim() || 'Meal',
@@ -125,6 +134,7 @@ export default function ReviewScreen() {
     }
   }
 
+  // Both async preparation phases share the same loading layout.
   if (phase === 'preparing' || phase === 'analyzing') {
     return (
       <View style={styles.centered}>
@@ -142,6 +152,7 @@ export default function ReviewScreen() {
     );
   }
 
+  // A failed request keeps the original photo and offers a retry.
   if (phase === 'failed') {
     return (
       <View style={styles.centered}>

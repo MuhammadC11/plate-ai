@@ -11,27 +11,38 @@ import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/lib/theme';
 
 export default function ScanScreen() {
+  // Expo Router gives us navigation, while the ref lets us call camera methods
+  // such as takePictureAsync on the mounted CameraView instance.
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
 
+  // Camera permission starts as null while iOS is checking the current status.
   const [permission, requestPermission] = useCameraPermissions();
+  // The camera begins with the rear lens; setFacing triggers a preview switch.
   const [facing, setFacing] = useState<CameraType>('back');
+  // We do not allow capture until the native camera reports that it is ready.
   const [ready, setReady] = useState(false);
+  // This prevents double taps from starting two captures at once.
   const [capturing, setCapturing] = useState(false);
 
   function openReview(uri: string) {
+    // Both a camera photo and a library photo end up at the same review route.
     // replace, not push: the camera has served its purpose and shouldn't sit
     // behind the review screen in the history stack.
     router.replace({ pathname: '/review', params: { uri } });
   }
 
   async function capture() {
+    // A ref can be null before mount, and the flags protect the camera call
+    // from happening too early or while a previous capture is still running.
     if (!cameraRef.current || !ready || capturing) return;
 
     setCapturing(true);
     try {
+      // Haptics are unavailable on web, so only trigger them on native devices.
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // The returned URI points to the local image that the review screen reads.
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
       if (photo?.uri) openReview(photo.uri);
     } catch (error) {
@@ -43,16 +54,19 @@ export default function ScanScreen() {
 
   async function pickFromLibrary() {
     try {
+      // ImagePicker opens Photos; FileSystem.pickFileAsync would open iOS Files.
       const picked = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
       });
+      // A canceled picker has no assets, so check both conditions before routing.
       if (!picked.canceled && picked.assets[0]) openReview(picked.assets[0].uri);
     } catch (error) {
       console.error('Picking an image failed:', error);
     }
   }
 
+  // Render a temporary loading state while the native permission status is read.
   if (!permission) {
     return (
       <View style={styles.centered}>
@@ -61,6 +75,7 @@ export default function ScanScreen() {
     );
   }
 
+  // This branch gives the user a way to request access or choose a library photo.
   if (!permission.granted) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -81,6 +96,7 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.root}>
+      {/* The camera fills the screen; the controls are layered above it below. */}
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
@@ -89,6 +105,7 @@ export default function ScanScreen() {
       />
 
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+        {/* Top controls sit above the preview because the camera is absolute-fill. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close camera"
@@ -132,6 +149,7 @@ export default function ScanScreen() {
           disabled={!ready || capturing}
           style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed]}
         >
+          {/* Replace the shutter with a spinner while the async camera call runs. */}
           {capturing ? (
             <ActivityIndicator color={colors.bg} />
           ) : (

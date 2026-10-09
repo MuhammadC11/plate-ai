@@ -18,8 +18,12 @@ export type PreparedImage = {
 };
 
 export async function prepareImage(uri: string): Promise<PreparedImage> {
+  // ImageManipulator creates a pipeline for the local file without changing
+  // the original photo selected by the user.
   const context = ImageManipulator.manipulate(uri);
+  // A smaller image is faster to upload and is still detailed enough to inspect.
   const rendered = await context.resize({ width: MAX_EDGE }).renderAsync();
+  // Base64 is returned because the Edge Function receives the image in JSON.
   const saved = await rendered.saveAsync({
     compress: JPEG_QUALITY,
     format: SaveFormat.JPEG,
@@ -34,6 +38,7 @@ export async function prepareImage(uri: string): Promise<PreparedImage> {
 }
 
 export async function analyzeMeal(base64: string, hint?: string): Promise<AnalysisResult> {
+  // Supabase attaches the signed-in user's auth token to this function request.
   const { data, error } = await supabase.functions.invoke<AnalysisResult & { error?: string }>(
     'analyze-meal',
     {
@@ -47,6 +52,7 @@ export async function analyzeMeal(base64: string, hint?: string): Promise<Analys
     const detail = await readFunctionError(error);
     throw new Error(detail ?? error.message ?? 'Analysis failed.');
   }
+  // A successful HTTP response can still contain no body, so guard that case.
   if (!data) {
     throw new Error('The analyzer returned nothing. Try again.');
   }
@@ -58,6 +64,7 @@ export async function analyzeMeal(base64: string, hint?: string): Promise<Analys
 }
 
 async function readFunctionError(error: unknown): Promise<string | null> {
+  // FunctionsHttpError stores the function's Response under context, not message.
   const context = (error as { context?: unknown })?.context;
   if (context instanceof Response) {
     try {

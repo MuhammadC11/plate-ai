@@ -3,6 +3,7 @@ import type { Meal, Totals } from './types';
 export const emptyTotals: Totals = { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
 
 export function sumItems(items: { calories: number; protein_g: number; carbs_g: number; fat_g: number }[]): Totals {
+  // reduce carries one running total through every food item.
   return items.reduce<Totals>(
     (acc, item) => ({
       calories: acc.calories + item.calories,
@@ -15,6 +16,7 @@ export function sumItems(items: { calories: number; protein_g: number; carbs_g: 
 }
 
 export function sumMeals(meals: Meal[]): Totals {
+  // Flatten meals first because sumItems only needs the individual items.
   return sumItems(meals.flatMap((meal) => meal.items));
 }
 
@@ -27,6 +29,7 @@ export function rescaleToGrams<T extends { grams: number; calories: number; prot
   item: T,
   nextGrams: number
 ): T {
+  // Preserve the original item's nutrition-per-gram ratio when its portion changes.
   if (item.grams <= 0) return { ...item, grams: nextGrams };
   const ratio = nextGrams / item.grams;
   return {
@@ -40,6 +43,7 @@ export function rescaleToGrams<T extends { grams: number; calories: number; prot
 }
 
 export function round(value: number, decimals = 0): number {
+  // Multiplying before Math.round lets us round to tenths as well as whole numbers.
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
 }
@@ -54,6 +58,7 @@ export function caloriesFromMacros(protein_g: number, carbs_g: number, fat_g: nu
 }
 
 export function localDayKey(date: Date | string): string {
+  // Local calendar fields avoid grouping a late-night meal under the UTC date.
   const d = typeof date === 'string' ? new Date(date) : date;
   const year = d.getFullYear();
   const month = `${d.getMonth() + 1}`.padStart(2, '0');

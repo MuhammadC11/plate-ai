@@ -8,11 +8,13 @@ import type { AnalysisItem, Meal, MealItem, Profile } from '@/lib/types';
  * keeps arithmetic in the UI safe if a column type ever changes.
  */
 function num(value: unknown): number {
+  // Database values may arrive as strings for numeric columns; normalize them.
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function mapItem(row: Record<string, unknown>): MealItem {
+  // Convert an untyped PostgREST row into the app's safer MealItem shape.
   return {
     id: String(row.id),
     meal_id: String(row.meal_id),
@@ -31,6 +33,7 @@ function mapItem(row: Record<string, unknown>): MealItem {
 }
 
 function mapMeal(row: Record<string, unknown>): Meal {
+  // Supabase nests meal_items under each meal because of the foreign key.
   const items = Array.isArray(row.meal_items) ? (row.meal_items as Record<string, unknown>[]) : [];
   return {
     id: String(row.id),
@@ -40,6 +43,7 @@ function mapMeal(row: Record<string, unknown>): Meal {
     notes: (row.notes as string | null) ?? null,
     eaten_at: String(row.eaten_at),
     created_at: String(row.created_at),
+    // Position preserves the order in which foods were identified on save.
     items: items.map(mapItem).sort((a, b) => a.position - b.position),
   };
 }
@@ -47,6 +51,7 @@ function mapMeal(row: Record<string, unknown>): Meal {
 const MEAL_SELECT = 'id, user_id, title, photo_url, notes, eaten_at, created_at, meal_items (*)';
 
 export async function listMealsBetween(start: Date, end: Date): Promise<Meal[]> {
+  // ISO timestamps let Postgres compare the requested local-day boundaries safely.
   const { data, error } = await supabase
     .from('meals')
     .select(MEAL_SELECT)
@@ -59,6 +64,7 @@ export async function listMealsBetween(start: Date, end: Date): Promise<Meal[]> 
 }
 
 export async function listRecentMeals(limit = 60): Promise<Meal[]> {
+  // History uses a bounded query so a long-lived account does not load everything.
   const { data, error } = await supabase
     .from('meals')
     .select(MEAL_SELECT)
@@ -70,6 +76,7 @@ export async function listRecentMeals(limit = 60): Promise<Meal[]> {
 }
 
 export async function getMeal(mealId: string): Promise<Meal | null> {
+  // maybeSingle returns null instead of throwing when the ID does not exist.
   const { data, error } = await supabase
     .from('meals')
     .select(MEAL_SELECT)
@@ -82,6 +89,7 @@ export async function getMeal(mealId: string): Promise<Meal | null> {
 
 export async function uploadMealPhoto(userId: string, localUri: string): Promise<string | null> {
   try {
+    // The storage policy expects the first path segment to be the user's ID.
     const bytes = await new FsFile(localUri).arrayBuffer();
     const path = `${userId}/${Date.now()}.jpg`;
 
@@ -108,6 +116,7 @@ export type NewMeal = {
 };
 
 export async function createMeal(userId: string, meal: NewMeal): Promise<string> {
+  // Insert the parent meal first so its generated ID can be used by meal_items.
   const { data, error } = await supabase
     .from('meals')
     .insert({
@@ -124,6 +133,7 @@ export async function createMeal(userId: string, meal: NewMeal): Promise<string>
   const mealId = String(data.id);
 
   if (meal.items.length > 0) {
+    // Bulk insert all foods with their position in the review list.
     const { error: itemsError } = await supabase.from('meal_items').insert(
       meal.items.map((item, index) => ({
         meal_id: mealId,
@@ -152,11 +162,13 @@ export async function createMeal(userId: string, meal: NewMeal): Promise<string>
 }
 
 export async function deleteMeal(mealId: string): Promise<void> {
+  // The database foreign key cascades deletion to that meal's items.
   const { error } = await supabase.from('meals').delete().eq('id', mealId);
   if (error) throw new Error(error.message);
 }
 
 export async function getProfile(userId: string): Promise<Profile> {
+  // Profiles are created by the signup trigger, then read whenever settings load.
   const { data, error } = await supabase
     .from('profiles')
     .select('id, calorie_goal, protein_goal_g, carbs_goal_g, fat_goal_g')
@@ -181,6 +193,7 @@ export async function getProfile(userId: string): Promise<Profile> {
 }
 
 export async function updateProfile(userId: string, patch: Partial<Omit<Profile, 'id'>>): Promise<void> {
+  // Only supplied fields are changed; updated_at records when settings changed.
   const { error } = await supabase
     .from('profiles')
     .update({ ...patch, updated_at: new Date().toISOString() })

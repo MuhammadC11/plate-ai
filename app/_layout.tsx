@@ -8,11 +8,13 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { colors } from '@/lib/theme';
 
 function RootNavigator() {
+  // Navigation decisions depend on the shared auth session and current route.
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // Wait for persisted auth to load before redirecting, avoiding a flash of the wrong screen.
     if (loading) return;
 
     const onSignIn = segments[0] === 'sign-in';
@@ -24,6 +26,7 @@ function RootNavigator() {
   }, [session, loading, segments, router]);
 
   if (loading) {
+    // Keep the first frame simple while Supabase restores the session.
     return (
       <View style={styles.splash}>
         <ActivityIndicator color={colors.accent} size="large" />
@@ -57,6 +60,7 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // Providers wrap the entire route tree so every screen gets safe areas and auth state.
   return (
     <SafeAreaProvider>
       <AuthProvider>
